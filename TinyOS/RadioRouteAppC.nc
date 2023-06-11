@@ -4,12 +4,14 @@
 configuration RadioRouteAppC {}
 implementation {
 /****** COMPONENTS *****/
-  components MainC, RadioRouteC as App, LedsC;
+  components MainC, RadioRouteC as App;
   //add the other components here
   components new AMSenderC(AM_RADIO_COUNT_MSG);
   components new AMReceiverC(AM_RADIO_COUNT_MSG);
   components new TimerMilliC() as Timer0;
   components new TimerMilliC() as Timer1;
+  components new TimerMilliC() as ACK_timer;
+  components new Random() as Random;
   components ActiveMessageC;
   
   
@@ -21,9 +23,10 @@ implementation {
   App.Receive -> AMReceiverC;
   App.AMSend -> AMSenderC;
   App.AMControl -> ActiveMessageC;
-  App.Leds -> LedsC;
   App.Timer0 -> Timer0;
   App.Timer1 -> Timer1;
+  App.ACK_timer -> ACK_timer;
   App.Packet -> AMSenderC;
+  App.Random -> Random;
 }
 
