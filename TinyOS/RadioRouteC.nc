@@ -50,9 +50,21 @@ implementation {
   bool actual_send (uint16_t address, message_t* packet);
   bool generate_send (uint16_t address, message_t* packet, uint8_t type);
   
+  //non so bene dove vadano messe le strutture dati ma per farti capire come le farei io
+  //per farla più veloce di potrebbero usare un po di puntatori in modo da dividerla in "zone" a seconda
+  //di da dove arriva il messaggio, oppure semplicemente farne 5...ma anche un po sticazzi
+  typedef struct received_messages{
+  	uint16_t id;
+  	received_messages_t* next;
+  }received_messages_t;
   
-  
-  
+  //allora in teoria anche i messaggi inviati dovrebbero avere una lista dinamica,
+  //però se vediamo che tendenzialmente gli ack arrivano, possiamo anche fare un vettore 
+  //un po grosso e basta, comunque nel caso sarebbe così credo
+  typedef struct sent_messages{
+  	uint16_t id;
+  	sent_messages_t* next;
+  }sent_messages_t;
   
   
   bool generate_send (uint16_t address, message_t* packet, uint8_t type){
@@ -107,6 +119,7 @@ implementation {
 			locked = TRUE;
 			dbg_clear("radio_send", " at time %s \n", sim_time_string());
 			dbg("radio_send","message sent to node %d with type %d\n",address, data_msg->type);
+			//start ackTimer?
 		  return TRUE;
   	} else return FALSE; }
   }
@@ -175,13 +188,13 @@ implementation {
 		if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5 && rrm->type==2) {
 			//controllo ID
 			radio_route_msg_t* msg_stored = (radio_route_msg_t*)call Packet.getPayload(&message_to_be_confirmed, sizeof(radio_route_msg_t));
-			if (rrm->ID == msg_stored->ID) {
+			if (rrm->ID == msg_stored->ID) { //non dovrei controllare nella lista del nodo con un for? questa condizione risulta sempre vera penso
 				ACK_timer.stop();
 				free(message_to_be_confirmed);//se non va lo levo tanto ci sovrascrivo	
 			}				
 			//si potrebbe anche cancellare il mex salvato ma inutile tanto lo sovrascrivo poi
 			//ack_received = TRUE; -> altra possibile sol usare booleano e se FALSE mando di nuovo
-		} else if(TOS_NODE_ID == 6 && TOS_NODE_ID == 7) {
+		} else if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7) {
 		//GATEWAY NODE (6-7)
 		if(rrm->type == 1) {
 		//caso 2: riceve data message da sensor, deve ri-inviarlo a server node
@@ -226,6 +239,35 @@ implementation {
       dbg_clear("radio_send", " at time %s \n",sim_time_string());
       dbg("radio_send", "\n");
     }
+  }
+  
+  //o una roba simile, se teniamo questa struttura guardo bene come si faceva
+  bool add_msg_to_list(received_messages_t* first, uint16_t id){
+  	while(first->next!=NULL)
+  		first = first->next;
+  	received_message_t last = malloc(sizeof(received_message_t));
+  	last.id = id;
+  	last.next = NULL;
+  	first->next = last;
+  }
+  
+  bool delete_msg_to_list(received_messages_t* first, uint16_t id){
+  	received_messages_t* element = first->next;
+  	while(element->id!=id){
+  		first = first->next;
+  		element = element->next;
+  	}
+  	first->next = element->next;
+  	free(element);
+  }
+  
+  bool check_msg_in_list(received_messages_t* first, uint16_t id){
+  	while(first->id!=id){
+  		if(first->next==NULL)
+  			return FALSE;
+  		first = first->next;
+  	}
+  	return TRUE;
   }
 }
 
