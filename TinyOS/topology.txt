@@ -1,5 +1,3 @@
-//1-5 are nodes, 6 is GW1, 7 is GW2, 8 is Network Server
-//all connections are bidirectional
 1 6 -60.0
 6 1 -60.0
 2 6 -60.0

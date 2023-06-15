@@ -83,7 +83,7 @@ implementation {
   		return FALSE;
   	}else{
   	if (type == 1){
-		message_to_be_confirmed = packet;
+		message_to_be_confirmed = *packet;
   		//call ACK_timer.startOneShot(1000);
   		queued_packet = *packet;
   		queue_addr = address;
@@ -153,10 +153,11 @@ implementation {
   }
   
   event void Timer1.fired() {
-	int val_to_send = Random.rand16();
+	uint16_t val_to_send = call Random.rand16();
+
 	radio_route_msg_t* rrm = (radio_route_msg_t*)call Packet.getPayload(&packet, sizeof(radio_route_msg_t));
 	dbg("timer","Timer1 fired in node %d at time %s\n", TOS_NODE_ID, sim_time_string());
-		ACK_recived = FALSE;
+		ACK_received = FALSE;
 		rrm->type = 1;//1=data message, 2=ACK message
 		rrm->sender = TOS_NODE_ID;
 		rrm->value = val_to_send;
@@ -174,7 +175,6 @@ implementation {
 
   event message_t* Receive.receive(message_t* bufPtr, void* payload, uint8_t len) {
   	//radio_route_msg_t* data_msg = (radio_route_msg_t*)call Packet.getPayload(&data_msg_to_send, sizeof(radio_route_msg_t));
-  	int i;
 	if (len != sizeof(radio_route_msg_t)) {return bufPtr;}
     else {
         radio_route_msg_t* rrm = (radio_route_msg_t*)payload;
@@ -187,10 +187,9 @@ implementation {
 			//controllo ID
 			radio_route_msg_t* msg_stored = (radio_route_msg_t*)call Packet.getPayload(&message_to_be_confirmed, sizeof(radio_route_msg_t));
 			if (rrm->ID == msg_stored->ID && !ACK_received) { //non dovrei controllare nella lista del nodo con un for? questa condizione risulta sempre vera penso
-				ACK_timer.stop();
+				call ACK_timer.stop();
 				ACK_received = TRUE;
 				call Timer1.startOneShot(2000);
-				free(message_to_be_confirmed);//se non va lo levo tanto ci sovrascrivo	
 			}				
 			//si potrebbe anche cancellare il mex salvato ma inutile tanto lo sovrascrivo poi
 			//ack_received = TRUE; -> altra possibile sol usare booleano e se FALSE mando di nuovo
@@ -202,7 +201,7 @@ implementation {
 			generate_send(8,bufPtr,1);
 		} else {
 		//caso 3: riceve ack da server node, lo inoltra solo all'effettivo destinatario 
-			generate_send(payload->destination,bufPtr,2);
+			generate_send(rrm->destination,bufPtr,2);
 		}} else {
 		//SERVER NODE (8)
 		//caso 4: riceve data messages da sensor, manda ack, tiene in memoria i mex, controlla i duplicati -> avrà un array dove segna id messaggi ricevuti
