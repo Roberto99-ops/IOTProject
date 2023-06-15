@@ -1,0 +1,14 @@
+NODO INVIA ROBA:
+	-nodo invia messaggio dopo x secondi
+	-arriva al gateway
+	-arriva al server
+	-server invia ack
+	-arriva al gateway
+	-se arriva al nodo entro 1 secondo
+		-azzero timer
+		-aspetto x secondi
+	-altrimenti
+		-aspetto un tempo random tra 1 e 3 secondi
+		-ritrasmetto il messaggio
+
+quanto deve essere grande x?
