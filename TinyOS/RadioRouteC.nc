@@ -27,7 +27,7 @@ module RadioRouteC @safe() {
 implementation {
 
   message_t packet;
-  //timer0 attiva tutti i nodi
+  //timer0 quando invia
   //timer1 manda periodic messages dai sensori (1-5)
   //bisogna mettere timer2 per rimandare il messaggio indietro con un random 1-3?
   
@@ -40,14 +40,11 @@ implementation {
   //counter used fo building the message ID
   int counter = 1;
   uint16_t queue_addr;
-  uint16_t time_delays[7]={61,173,267,371,479,583,689}; //Time delay in milli seconds
-  
-  
-  bool route_req_sent=FALSE;
-  bool route_rep_sent=FALSE;
+  uint16_t time_delays[8]={61,173,267,371,479,583,689,734}; //Time delay in milli seconds
   
   
   bool locked;
+  bool ACK_received = FALSE;
   
   bool actual_send (uint16_t address, message_t* packet);
   bool generate_send (uint16_t address, message_t* packet, uint8_t type);
@@ -87,20 +84,20 @@ implementation {
   	}else{
   	if (type == 1){
 		message_to_be_confirmed = packet;
-  		call ACK_timer.startOneShot(1000);
-		actual_send(address, packet);
+  		//call ACK_timer.startOneShot(1000);
+  		queued_packet = *packet;
+  		queue_addr = address;
+  		call Timer0.startOneShot(time_delays[TOS_NODE_ID-1]);
   	}else if (type == 2){
-		actual_send(address, packet);
+  		queued_packet = *packet;
+  		queue_addr = address;
+  		call Timer0.startOneShot(time_delays[TOS_NODE_ID-1]);
   	}
   	}
   	return TRUE;
   }
   
   event void Timer0.fired() {
-  	/*
-  	* Timer triggered to perform the send.
-  	* da capire se serve fare delay della send come in challenge 3
-  	*/
   	actual_send (queue_addr, &queued_packet);
   }
   
@@ -121,7 +118,6 @@ implementation {
 			locked = TRUE;
 			dbg_clear("radio_send", " at time %s \n", sim_time_string());
 			dbg("radio_send","message sent to node %d with type %d\n",address, data_msg->type);
-			//start ackTimer?
 		  return TRUE;
   	} else return FALSE; }
   }
@@ -137,7 +133,7 @@ implementation {
       
       //if sensor node start transmit periodically random data -> messo ogni 2 secondi, da capire poi se meglio avere tempi diversi per ogni sensore o va bene cosi
       if(TOS_NODE_ID >= 1 && TOS_NODE_ID <=5) {
-      	call Timer1.startPeriodic(2000);
+      	call Timer1.startOneShot(2000);
       	dbg("radio","Radio ON on sensor node with ID %d\n", TOS_NODE_ID);
       	} else if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7) {
       	dbg("radio","Radio ON on gateway node with ID %d\n", TOS_NODE_ID);
@@ -160,7 +156,7 @@ implementation {
 	int val_to_send = Random.rand16();
 	radio_route_msg_t* rrm = (radio_route_msg_t*)call Packet.getPayload(&packet, sizeof(radio_route_msg_t));
 	dbg("timer","Timer1 fired in node %d at time %s\n", TOS_NODE_ID, sim_time_string());
-	
+		ACK_recived = FALSE;
 		rrm->type = 1;//1=data message, 2=ACK message
 		rrm->sender = TOS_NODE_ID;
 		rrm->value = val_to_send;
@@ -190,8 +186,10 @@ implementation {
 		if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5 && rrm->type==2) {
 			//controllo ID
 			radio_route_msg_t* msg_stored = (radio_route_msg_t*)call Packet.getPayload(&message_to_be_confirmed, sizeof(radio_route_msg_t));
-			if (rrm->ID == msg_stored->ID) { //non dovrei controllare nella lista del nodo con un for? questa condizione risulta sempre vera penso
+			if (rrm->ID == msg_stored->ID && !ACK_received) { //non dovrei controllare nella lista del nodo con un for? questa condizione risulta sempre vera penso
 				ACK_timer.stop();
+				ACK_received = TRUE;
+				call Timer1.startOneShot(2000);
 				free(message_to_be_confirmed);//se non va lo levo tanto ci sovrascrivo	
 			}				
 			//si potrebbe anche cancellare il mex salvato ma inutile tanto lo sovrascrivo poi
@@ -210,7 +208,7 @@ implementation {
 		//caso 4: riceve data messages da sensor, manda ack, tiene in memoria i mex, controlla i duplicati -> avrà un array dove segna id messaggi ricevuti
 			int sending_node = rrm->sender;
 			if(received_messages[sending_node-1] < rrm->ID) {
-				received_messages[sending_node-1] = rrm->ID;
+				received_messages[sending_node-1] = rrm->ID;//salviamo solo l'ultimo perchè mandiamo uno per volta
 				}
 			rrm->type = 2;
 			rrm->destination = rrm->sender;
@@ -226,8 +224,11 @@ implementation {
 	/* This event is triggered when a message is sent 
 	*  Check if the packet is sent 
 	*/ 
-	if (&packet == bufPtr) {
+	radio_route_msg_t* rrm = (radio_route_msg_t*)call Packet.getPayload(&queued_packet, sizeof(radio_route_msg_t));
+	if (&queued_packet == bufPtr) {
       locked = FALSE;
+      if(rrm->type == 1)
+	      call ACK_timer.startOneShot(1000);
       dbg("radio_send", "\n");
       dbg("radio_send", "Packet sent");
       dbg_clear("radio_send", " at time %s \n",sim_time_string());

@@ -40,8 +40,6 @@ print "Activate debug message on channel boot"
 t.addChannel("boot",out);
 print "Activate debug message on channel timer"
 t.addChannel("timer",out);
-print "Activate debug message on channel leds"
-t.addChannel("leds",out);
 print "Activate debug message on channel radio"
 t.addChannel("radio",out);
 print "Activate debug message on channel radio_send"
