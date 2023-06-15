@@ -12,3 +12,9 @@ NODO INVIA ROBA:
 		-ritrasmetto il messaggio
 
 quanto deve essere grande x?
+
+per quanto riguarda la tabella dei messaggi ricevuti del server:
+	è un vettore lungo 5, in cui nela posizione zero avremo l'ultimo ID ricevuto dal nodo 1,
+	nella posizione 1 l'ultimo id ricevuto da nodo 2 ecc...secondo me funziona.
+	
+	c'è da aggiungere il timerr random(1,3) per reinviare i pacchetti senza ack

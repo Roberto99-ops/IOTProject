@@ -29,14 +29,16 @@ implementation {
   message_t packet;
   //timer0 attiva tutti i nodi
   //timer1 manda periodic messages dai sensori (1-5)
+  //bisogna mettere timer2 per rimandare il messaggio indietro con un random 1-3?
   
   // Variables to store the message to send
   message_t queued_packet;
   message_t message_to_be_confirmed;
-  //da capire se sensor node ha bisogno solo di tenere traccia solo degli id o tutti i messaggi -> penso solo id
-  //message_t received_messages[10000];
-  int received_messages[10000];
-  int counter = 0;
+  //this is the list of the last received message for each node. it stores just the msg_ID and it works because
+  //we assign msg_ID with an increasing number with the message that we are sending
+  int received_messages[5] = {0,0,0,0,0};
+  //counter used fo building the message ID
+  int counter = 1;
   uint16_t queue_addr;
   uint16_t time_delays[7]={61,173,267,371,479,583,689}; //Time delay in milli seconds
   
@@ -53,7 +55,7 @@ implementation {
   //non so bene dove vadano messe le strutture dati ma per farti capire come le farei io
   //per farla più veloce di potrebbero usare un po di puntatori in modo da dividerla in "zone" a seconda
   //di da dove arriva il messaggio, oppure semplicemente farne 5...ma anche un po sticazzi
-  typedef struct received_messages{
+  /*typedef struct received_messages{
   	uint16_t id;
   	received_messages_t* next;
   }received_messages_t;
@@ -64,7 +66,7 @@ implementation {
   typedef struct sent_messages{
   	uint16_t id;
   	sent_messages_t* next;
-  }sent_messages_t;
+  }sent_messages_t;*/
   
   
   bool generate_send (uint16_t address, message_t* packet, uint8_t type){
@@ -162,21 +164,21 @@ implementation {
 		rrm->type = 1;//1=data message, 2=ACK message
 		rrm->sender = TOS_NODE_ID;
 		rrm->value = val_to_send;
-		//rrm->ID = TOS_NODE_ID +"_"+ counter -> idea concateno nodo e counter quindi cambio tipo ID in string oppure uso un int random però non so perchè magari mi esce lo stesso
+		rrm->ID = counter;
 		dbg("timer","Timer1 fired in node %d generating DATA MESSAGE for node %d\n", TOS_NODE_ID, node_to_send_to);
 		generate_send(AM_BROADCAST_ADDR,&packet,1);//in questa func avvio timer di un sec, se non ricevo risposta allora ri-invio mex
-		//counter++;
+		counter++;
   }
   
   event void ACK_timer.fired() {
   	//rimanda mex in message_to_be_confirmed 
+  	//deve aspettare un numero random di secondi
   	generate_send(AM_BROADCAST_ADDR,&message_to_be_confirmed,1);//capire se da fare una sola volta o più volte finchè non arriva il suo ack
   }
 
   event message_t* Receive.receive(message_t* bufPtr, void* payload, uint8_t len) {
   	//radio_route_msg_t* data_msg = (radio_route_msg_t*)call Packet.getPayload(&data_msg_to_send, sizeof(radio_route_msg_t));
   	int i;
-  	bool found;
 	if (len != sizeof(radio_route_msg_t)) {return bufPtr;}
     else {
         radio_route_msg_t* rrm = (radio_route_msg_t*)payload;
@@ -206,24 +208,16 @@ implementation {
 		}} else {
 		//SERVER NODE (8)
 		//caso 4: riceve data messages da sensor, manda ack, tiene in memoria i mex, controlla i duplicati -> avrà un array dove segna id messaggi ricevuti
-			found = FALSE;
-			for(i=0; i<=counter; i++) {
-				if(received_messages[i] == rrm->ID) {
-					found = TRUE;
-					break;
+			int sending_node = rrm->sender;
+			if(received_messages[sending_node-1] < rrm->ID) {
+				received_messages[sending_node-1] = rrm->ID;
 				}
-			}
-			if(!found) {
-				received_messages[counter] = rrm->ID;
-				//capisco cosa devo passare a nodered e thingspeak e come
-				counter++;
-				rrm->type = 2;
-				rrm->destination = rrm->sender;
-				rrm->sender = 8;
-				rrm->ID = rrm->ID;//inutile ma era per far capire che tengo lo stesso
-				//capisco se mettere a null ciò che non si usa
-				generate_send(rrm->gateway, bufPtr, 2);
-			}
+			rrm->type = 2;
+			rrm->destination = rrm->sender;
+			rrm->sender = 8;
+			rrm->ID = rrm->ID;//inutile ma era per far capire che tengo lo stesso
+			//capisco se mettere a null ciò che non si usa
+			generate_send(rrm->gateway, bufPtr, 2);
 		}
     }
   }
@@ -240,7 +234,7 @@ implementation {
       dbg("radio_send", "\n");
     }
   }
-  
+  /*
   //o una roba simile, se teniamo questa struttura guardo bene come si faceva
   bool add_msg_to_list(received_messages_t* first, uint16_t id){
   	while(first->next!=NULL)
@@ -268,7 +262,7 @@ implementation {
   		first = first->next;
   	}
   	return TRUE;
-  }
+  }*/
 }
 
 

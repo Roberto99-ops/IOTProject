@@ -12,7 +12,7 @@ typedef nx_struct radio_route_msg {
 	nx_uint8_t gateway; //sender gateway
 	nx_uint8_t destination; //used just by gateways and server
 	nx_uint16_t value; //payload
-	nx_uint16_t ID;//message ID to check duplicates
+	nx_uint16_t ID;//message ID to check for duplicates
 } radio_route_msg_t;
 
 enum {
