@@ -11,7 +11,7 @@ implementation {
   components new TimerMilliC() as Timer0;
   components new TimerMilliC() as Timer1;
   components new TimerMilliC() as ACK_timer;
-  components new Random() as Random;
+  components RandomC;
   components ActiveMessageC;
   
   
@@ -27,6 +27,6 @@ implementation {
   App.Timer1 -> Timer1;
   App.ACK_timer -> ACK_timer;
   App.Packet -> AMSenderC;
-  App.Random -> Random;
+  App.Random -> RandomC;
 }
 
