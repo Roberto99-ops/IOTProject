@@ -11,12 +11,8 @@ implementation {
   components new TimerMilliC() as Timer0;
   components new TimerMilliC() as Timer1;
   components new TimerMilliC() as ACK_timer;
-<<<<<<< HEAD
-=======
   components RandomC;
->>>>>>> 752c124715baf9f310fd4bdbefce08dfe678cec1
   components ActiveMessageC;
-  components RandomC;
   
   
   /****** INTERFACES *****/

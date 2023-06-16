@@ -1,13 +1,13 @@
 <tos_image>
   <ident>
-    <uidhash>07C8CF8CL</uidhash>
-    <username>user</username>
     <appname>RadioRouteAppC</appname>
-    <platform>micaz</platform>
-    <deluge_support>no</deluge_support>
+    <timestamp>648C3973L</timestamp>
     <hostname>user-iot</hostname>
     <userhash>2C00343AL</userhash>
-    <timestamp>648C32EBL</timestamp>
+    <uidhash>413BBCF7L</uidhash>
+    <username>user</username>
+    <platform>micaz</platform>
+    <deluge_support>no</deluge_support>
   </ident>
   <image format="ihex">
 :100000000C9449000C94D5050C94DF050C94E9057B
