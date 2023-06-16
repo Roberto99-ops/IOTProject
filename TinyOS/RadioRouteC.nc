@@ -153,8 +153,12 @@ implementation {
   }
   
   event void Timer1.fired() {
+<<<<<<< HEAD
 	uint16_t val_to_send = call Random.rand16();
 
+=======
+	int val_to_send = call Random.rand16();
+>>>>>>> 752c124715baf9f310fd4bdbefce08dfe678cec1
 	radio_route_msg_t* rrm = (radio_route_msg_t*)call Packet.getPayload(&packet, sizeof(radio_route_msg_t));
 	dbg("timer","Timer1 fired in node %d at time %s\n", TOS_NODE_ID, sim_time_string());
 		ACK_received = FALSE;
@@ -162,7 +166,7 @@ implementation {
 		rrm->sender = TOS_NODE_ID;
 		rrm->value = val_to_send;
 		rrm->ID = counter;
-		dbg("timer","Timer1 fired in node %d generating DATA MESSAGE for node %d\n", TOS_NODE_ID, node_to_send_to);
+		dbg("timer","Timer1 fired in node %d generating DATA MESSAGE\n", TOS_NODE_ID);
 		generate_send(AM_BROADCAST_ADDR,&packet,1);//in questa func avvio timer di un sec, se non ricevo risposta allora ri-invio mex
 		counter++;
   }
@@ -190,6 +194,10 @@ implementation {
 				call ACK_timer.stop();
 				ACK_received = TRUE;
 				call Timer1.startOneShot(2000);
+<<<<<<< HEAD
+=======
+				//free(message_to_be_confirmed);//se non va lo levo tanto ci sovrascrivo	
+>>>>>>> 752c124715baf9f310fd4bdbefce08dfe678cec1
 			}				
 			//si potrebbe anche cancellare il mex salvato ma inutile tanto lo sovrascrivo poi
 			//ack_received = TRUE; -> altra possibile sol usare booleano e se FALSE mando di nuovo
