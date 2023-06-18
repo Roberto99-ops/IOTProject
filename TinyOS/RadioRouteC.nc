@@ -8,7 +8,10 @@
  
  
 #include "Timer.h"
+#include "printf.h"	
 #include "RadioRoute.h"
+
+
 
 
 module RadioRouteC @safe() {
@@ -79,6 +82,7 @@ implementation {
   *
   * MANDATORY: DO NOT MODIFY THIS FUNCTION
   */
+  dbg("radio_send", "generating\n");
   	if (call Timer0.isRunning()){
   		return FALSE;
   	}else{
@@ -98,6 +102,7 @@ implementation {
   }
   
   event void Timer0.fired() {
+	dbg("timer", "timer0");
   	actual_send (queue_addr, &queued_packet);
   }
   
@@ -106,7 +111,8 @@ implementation {
 	* Implement here the logic to perform the actual send of the packet using the tinyOS interfaces
 	*/
 	if (locked) {
-      return FALSE;
+		dbg("radio_send", "locked");
+    	return FALSE;
     }
     else {
 		if (call AMSend.send(address, packet, sizeof(radio_route_msg_t)) == SUCCESS) {
@@ -132,7 +138,7 @@ implementation {
 	if (err == SUCCESS) {
       
       //if sensor node start transmit periodically random data -> messo ogni 2 secondi, da capire poi se meglio avere tempi diversi per ogni sensore o va bene cosi
-      if(TOS_NODE_ID >= 1 && TOS_NODE_ID <=5) {
+      if(TOS_NODE_ID >= 1 && TOS_NODE_ID <=1) {
       	call Timer1.startOneShot(2000);
       	dbg("radio","Radio ON on sensor node with ID %d\n", TOS_NODE_ID);
       	} else if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7) {
@@ -169,14 +175,15 @@ implementation {
   event void ACK_timer.fired() {
   	//rimanda mex in message_to_be_confirmed 
   	//deve aspettare un numero random di secondi
+  	dbg("timer","ACK_timer fired\n");
   	generate_send(AM_BROADCAST_ADDR,&message_to_be_confirmed,1);//capire se da fare una sola volta o più volte finchè non arriva il suo ack
   }
 
   event message_t* Receive.receive(message_t* bufPtr, void* payload, uint8_t len) {
-  	//radio_route_msg_t* data_msg = (radio_route_msg_t*)call Packet.getPayload(&data_msg_to_send, sizeof(radio_route_msg_t));
+  	
 	if (len != sizeof(radio_route_msg_t)) {return bufPtr;}
     else {
-        radio_route_msg_t* rrm = (radio_route_msg_t*)payload;
+        radio_route_msg_t* rrm = (radio_route_msg_t*)call Packet.getPayload(bufPtr, sizeof(radio_route_msg_t));
 		dbg("radio_rec","\n");
         dbg("radio_rec", "Received packet at time %s\n", sim_time_string());
         dbg("radio_pack", ">>>Pack \n \t Payload length %hhu \n", call Packet.payloadLength(bufPtr));
@@ -188,8 +195,7 @@ implementation {
 			if (rrm->ID == msg_stored->ID && !ACK_received) { //non dovrei controllare nella lista del nodo con un for? questa condizione risulta sempre vera penso
 				call ACK_timer.stop();
 				ACK_received = TRUE;
-				call Timer1.startOneShot(2000);
-				//free(message_to_be_confirmed);//se non va lo levo tanto ci sovrascrivo	
+				call Timer1.startOneShot(2000);	
 			}				
 			//si potrebbe anche cancellare il mex salvato ma inutile tanto lo sovrascrivo poi
 			//ack_received = TRUE; -> altra possibile sol usare booleano e se FALSE mando di nuovo
@@ -197,6 +203,7 @@ implementation {
 		//GATEWAY NODE (6-7)
 		if(rrm->type == 1) {
 		//caso 2: riceve data message da sensor, deve ri-inviarlo a server node
+		dbg("radio_rec"," dentro\n");
 			rrm->gateway = TOS_NODE_ID;
 			generate_send(8,bufPtr,1);
 		} else {
@@ -209,13 +216,17 @@ implementation {
 			if(received_messages[sending_node-1] < rrm->ID) {
 				received_messages[sending_node-1] = rrm->ID;//salviamo solo l'ultimo perchè mandiamo uno per volta
 				}
+			//credo servano per far andare su cooja
+			//printf("type:%d, sender:%d, gateway:%d, destination:%d, value:%d, ID:%d\n",rrm->type,rrm->sender,rrm->gateway,rrm->destination,rrm->value,rrm->ID);
+       		//printfflush();
+
 			rrm->type = 2;
 			rrm->destination = rrm->sender;
 			rrm->sender = 8;
-			rrm->ID = rrm->ID;//inutile ma era per far capire che tengo lo stesso
-			//capisco se mettere a null ciò che non si usa
+			rrm->ID = rrm->ID;
 			generate_send(rrm->gateway, bufPtr, 2);
 		}
+		return bufPtr;
     }
   }
 
@@ -224,6 +235,7 @@ implementation {
 	*  Check if the packet is sent 
 	*/ 
 	radio_route_msg_t* rrm = (radio_route_msg_t*)call Packet.getPayload(&queued_packet, sizeof(radio_route_msg_t));
+	dbg("radio_send", "sending\n");
 	if (&queued_packet == bufPtr) {
       locked = FALSE;
       if(rrm->type == 1)
