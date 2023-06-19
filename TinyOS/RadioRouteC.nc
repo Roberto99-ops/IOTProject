@@ -238,7 +238,7 @@ implementation {
 	dbg("radio_send", "sending\n");
 	if (&queued_packet == bufPtr) {
       locked = FALSE;
-      if(rrm->type == 1)
+      if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5 && rrm->type==1)
 	      call ACK_timer.startOneShot(1000);
       dbg("radio_send", "\n");
       dbg("radio_send", "Packet sent");
