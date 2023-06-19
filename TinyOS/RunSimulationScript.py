@@ -142,7 +142,7 @@ for i in range(1, 9):
 print "Start simulation with TOSSIM! \n";
 print "____________________________________________________________________________________________________\n\n\n"
 #increased the number of repetition in the for cycle above to write all the debug events
-for i in range(0,20000):
+for i in range(0,10000):
 	t.runNextEvent()
 	
 print "\n\n\nSimulation finished!";

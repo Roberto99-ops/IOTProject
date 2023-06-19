@@ -9,6 +9,7 @@
  
 #include "Timer.h"
 #include "printf.h"	
+#include "generic_printf.h"
 #include "RadioRoute.h"
 
 
@@ -42,8 +43,9 @@ implementation {
   int received_messages[5] = {0,0,0,0,0};
   //counter used fo building the message ID
   int counter = 1;
+  int n_retr = 0;
   uint16_t queue_addr;
-  uint16_t time_delays[8]={61,173,267,371,479,583,689,734}; //Time delay in milli seconds
+  //uint16_t time_delays[8]={61,173,267,371,479,583,689,734}; //Time delay in milli seconds
   
   
   bool locked;
@@ -82,27 +84,30 @@ implementation {
   *
   * MANDATORY: DO NOT MODIFY THIS FUNCTION
   */
-  dbg("radio_send", "generating\n");
+  	uint16_t delay = call Random.rand16();
+  	delay = 1 + (delay%400);
   	if (call Timer0.isRunning()){
+  		dbg("radio_send", "channel busy\n");
   		return FALSE;
   	}else{
+  	//dbg("radio_send", "generating\n");
   	if (type == 1){
 		message_to_be_confirmed = *packet;
   		//call ACK_timer.startOneShot(1000);
   		queued_packet = *packet;
   		queue_addr = address;
-  		call Timer0.startOneShot(time_delays[TOS_NODE_ID-1]);
+  		call Timer0.startOneShot(delay);
   	}else if (type == 2){
   		queued_packet = *packet;
   		queue_addr = address;
-  		call Timer0.startOneShot(time_delays[TOS_NODE_ID-1]);
+  		call Timer0.startOneShot(delay);
   	}
   	}
   	return TRUE;
   }
   
   event void Timer0.fired() {
-	dbg("timer", "timer0");
+	//dbg("timer", "timer0");
   	actual_send (queue_addr, &queued_packet);
   }
   
@@ -115,8 +120,8 @@ implementation {
     	return FALSE;
     }
     else {
+    	radio_route_msg_t* data_msg = (radio_route_msg_t*)call Packet.getPayload(packet, sizeof(radio_route_msg_t));
 		if (call AMSend.send(address, packet, sizeof(radio_route_msg_t)) == SUCCESS) {
-			radio_route_msg_t* data_msg = (radio_route_msg_t*)call Packet.getPayload(packet, sizeof(radio_route_msg_t));
 				if (data_msg == NULL) {
 			return FALSE;
       	}
@@ -124,6 +129,9 @@ implementation {
 			locked = TRUE;
 			dbg_clear("radio_send", " at time %s \n", sim_time_string());
 			dbg("radio_send","message sent to node %d with type %d\n",address, data_msg->type);
+			/*da capire se mettere qui o in sent alla fine
+			if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5 && data_msg->type==1)
+	      		call ACK_timer.startOneShot(1000);*/
 		  return TRUE;
   	} else return FALSE; }
   }
@@ -138,7 +146,7 @@ implementation {
 	if (err == SUCCESS) {
       
       //if sensor node start transmit periodically random data -> messo ogni 2 secondi, da capire poi se meglio avere tempi diversi per ogni sensore o va bene cosi
-      if(TOS_NODE_ID >= 1 && TOS_NODE_ID <=1) {
+      if(TOS_NODE_ID >= 1 && TOS_NODE_ID <=5) {
       	call Timer1.startOneShot(2000);
       	dbg("radio","Radio ON on sensor node with ID %d\n", TOS_NODE_ID);
       	} else if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7) {
@@ -175,8 +183,18 @@ implementation {
   event void ACK_timer.fired() {
   	//rimanda mex in message_to_be_confirmed 
   	//deve aspettare un numero random di secondi
-  	dbg("timer","ACK_timer fired\n");
-  	generate_send(AM_BROADCAST_ADDR,&message_to_be_confirmed,1);//capire se da fare una sola volta o più volte finchè non arriva il suo ack
+  	radio_route_msg_t* data_msg = (radio_route_msg_t*)call Packet.getPayload(&message_to_be_confirmed, sizeof(radio_route_msg_t));
+  	dbg("timer","ACK_timer fired, resending at time %s\n", sim_time_string());
+  	//limiting retransmission time to 3 for a message
+  	n_retr++;
+  	if(n_retr <=3){
+	  	generate_send(AM_BROADCAST_ADDR,&message_to_be_confirmed,1);//capire se da fare una sola volta o più volte finchè non arriva il suo ack
+	} else {
+		n_retr = 0;
+		ACK_received = TRUE;
+		call Timer1.startOneShot(2000);
+		dbg("timer","Message with ID %d discarded after 3 attempts of sending it\n", data_msg->ID);
+	}
   }
 
   event message_t* Receive.receive(message_t* bufPtr, void* payload, uint8_t len) {
@@ -184,15 +202,18 @@ implementation {
 	if (len != sizeof(radio_route_msg_t)) {return bufPtr;}
     else {
         radio_route_msg_t* rrm = (radio_route_msg_t*)call Packet.getPayload(bufPtr, sizeof(radio_route_msg_t));
-		dbg("radio_rec","\n");
+		//dbg("radio_rec","\n");
         dbg("radio_rec", "Received packet at time %s\n", sim_time_string());
-        dbg("radio_pack", ">>>Pack \n \t Payload length %hhu \n", call Packet.payloadLength(bufPtr));
+        //dbg("radio_pack", ">>>Pack \n \t Payload length %hhu \n", call Packet.payloadLength(bufPtr));
 		//SENSOR NODE (1:5)
 		//caso 1: ricevuto da sensor node (per forza un ACK ma metto comunque controllo per sicurezza) -> problema da capire quando magari non arriva ACK, si accumulano messaggi o aspetto a inviare altri
 		if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5 && rrm->type==2) {
 			//controllo ID
 			radio_route_msg_t* msg_stored = (radio_route_msg_t*)call Packet.getPayload(&message_to_be_confirmed, sizeof(radio_route_msg_t));
+			dbg("radio_rec","Node %d received an ACK message\n",TOS_NODE_ID);
 			if (rrm->ID == msg_stored->ID && !ACK_received) { //non dovrei controllare nella lista del nodo con un for? questa condizione risulta sempre vera penso
+				dbg("radio_rec","Node %d received ACK message for the message with ID: %d\n",TOS_NODE_ID, msg_stored->ID);
+				n_retr = 0;
 				call ACK_timer.stop();
 				ACK_received = TRUE;
 				call Timer1.startOneShot(2000);	
@@ -202,17 +223,19 @@ implementation {
 		} else if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7) {
 		//GATEWAY NODE (6-7)
 		if(rrm->type == 1) {
-		//caso 2: riceve data message da sensor, deve ri-inviarlo a server node
-		dbg("radio_rec"," dentro\n");
+			//caso 2: riceve data message da sensor, deve ri-inviarlo a server node
 			rrm->gateway = TOS_NODE_ID;
+			dbg("radio_rec","Gateway %d received a DATA MESSAGE\n",TOS_NODE_ID);
 			generate_send(8,bufPtr,1);
 		} else {
 		//caso 3: riceve ack da server node, lo inoltra solo all'effettivo destinatario 
+			dbg("radio_rec","Gateway %d received an ACK MESSAGE\n",TOS_NODE_ID);
 			generate_send(rrm->destination,bufPtr,2);
 		}} else {
 		//SERVER NODE (8)
 		//caso 4: riceve data messages da sensor, manda ack, tiene in memoria i mex, controlla i duplicati -> avrà un array dove segna id messaggi ricevuti
 			int sending_node = rrm->sender;
+			dbg("radio_rec","Server node received a DATA MESSAGE\n");
 			if(received_messages[sending_node-1] < rrm->ID) {
 				received_messages[sending_node-1] = rrm->ID;//salviamo solo l'ultimo perchè mandiamo uno per volta
 				}
@@ -238,6 +261,7 @@ implementation {
 	dbg("radio_send", "sending\n");
 	if (&queued_packet == bufPtr) {
       locked = FALSE;
+      //da capire se mettere qui o in actual send solo quando effettivamente invia
       if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5 && rrm->type==1)
 	      call ACK_timer.startOneShot(1000);
       dbg("radio_send", "\n");

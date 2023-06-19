@@ -1,6 +1,7 @@
+#include "Timer.h"
+#include "printf.h"	
+#include "generic_printf.h"
 #include "RadioRoute.h"
-#include "printf.h"
-
 
 configuration RadioRouteAppC {}
 implementation {
