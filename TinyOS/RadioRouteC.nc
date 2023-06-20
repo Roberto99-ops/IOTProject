@@ -87,7 +87,7 @@ implementation {
   	uint16_t delay = call Random.rand16();
   	delay = 1 + (delay%400);
   	if (call Timer0.isRunning()){
-  		dbg("radio_send", "channel busy\n");
+  		dbg("radio_send", "trying to send but channel busy\n");
   		return FALSE;
   	}else{
   	//dbg("radio_send", "generating\n");
@@ -115,6 +115,7 @@ implementation {
 	/*
 	* Implement here the logic to perform the actual send of the packet using the tinyOS interfaces
 	*/
+	char dbg_message[200];
 	if (locked) {
 		dbg("radio_send", "locked");
     	return FALSE;
@@ -125,10 +126,16 @@ implementation {
 				if (data_msg == NULL) {
 			return FALSE;
       	}
-			dbg("radio_send", "Sending packet");
 			locked = TRUE;
-			dbg_clear("radio_send", " at time %s \n", sim_time_string());
-			dbg("radio_send","message sent to node %d with type %d\n",address, data_msg->type);
+			sprintf(dbg_message, "message %d from node %d ", data_msg->ID, data_msg->sender);
+			if(data_msg->destination==0)
+				sprintf(dbg_message, "%s BROADCASTED", dbg_message);
+			if(TOS_NODE_ID==8)
+				sprintf(dbg_message, "%s sent to GATEWAY %d", dbg_message, address);
+			if(TOS_NODE_ID==6 || TOS_NODE_ID==7)
+				sprintf(dbg_message, "%s sent", dbg_message);
+			sprintf(dbg_message, "%s with final destination %d with type %d at time %s\n", dbg_message, data_msg->destination, data_msg->type, sim_time_string());
+			dbg("radio_send", "%s", dbg_message);
 			/*da capire se mettere qui o in sent alla fine
 			if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5 && data_msg->type==1)
 	      		call ACK_timer.startOneShot(1000);*/
@@ -169,13 +176,13 @@ implementation {
   event void Timer1.fired() {
 	uint16_t val_to_send = call Random.rand16();
 	radio_route_msg_t* rrm = (radio_route_msg_t*)call Packet.getPayload(&packet, sizeof(radio_route_msg_t));
-	dbg("timer","Timer1 fired in node %d at time %s\n", TOS_NODE_ID, sim_time_string());
+	//dbg("timer","Timer1 fired in node %d at time %s\n", TOS_NODE_ID, sim_time_string());
 		ACK_received = FALSE;
 		rrm->type = 1;//1=data message, 2=ACK message
 		rrm->sender = TOS_NODE_ID;
 		rrm->value = val_to_send;
 		rrm->ID = counter;
-		dbg("timer","Timer1 fired in node %d generating DATA MESSAGE\n", TOS_NODE_ID);
+		dbg("timer","Timer1 fired in node %d generating DATA MESSAGE at time %s\n", TOS_NODE_ID, sim_time_string());
 		generate_send(AM_BROADCAST_ADDR,&packet,1);//in questa func avvio timer di un sec, se non ricevo risposta allora ri-invio mex
 		counter++;
   }
@@ -203,7 +210,16 @@ implementation {
     else {
         radio_route_msg_t* rrm = (radio_route_msg_t*)call Packet.getPayload(bufPtr, sizeof(radio_route_msg_t));
 		//dbg("radio_rec","\n");
-        dbg("radio_rec", "Received packet at time %s\n", sim_time_string());
+		char dbg_message[200];
+		sprintf(dbg_message, "Received packet %d from node %d ", rrm->ID, rrm->sender);
+        //dbg("radio_rec", "Received packet %d from node %d ", rrm->ID, rrm->sender);
+        if(TOS_NODE_ID==7 || TOS_NODE_ID==6){
+        	sprintf(dbg_message, "%sfrom GATEWAY %d", dbg_message, TOS_NODE_ID);
+        	}
+        	//dbg("radio_rec","from GATEWAY %d ", TOS_NODE_ID);
+        sprintf(dbg_message, "%s with final destination %d at time %s\n", dbg_message, rrm->destination, sim_time_string());
+        //dbg("radio_rec", "with final destination %d at time %s\n", rrm->destination, sim_time_string());
+        dbg("radio_rec","%s", dbg_message);
         //dbg("radio_pack", ">>>Pack \n \t Payload length %hhu \n", call Packet.payloadLength(bufPtr));
 		//SENSOR NODE (1:5)
 		//caso 1: ricevuto da sensor node (per forza un ACK ma metto comunque controllo per sicurezza) -> problema da capire quando magari non arriva ACK, si accumulano messaggi o aspetto a inviare altri
@@ -225,17 +241,17 @@ implementation {
 		if(rrm->type == 1) {
 			//caso 2: riceve data message da sensor, deve ri-inviarlo a server node
 			rrm->gateway = TOS_NODE_ID;
-			dbg("radio_rec","Gateway %d received a DATA MESSAGE\n",TOS_NODE_ID);
+			//dbg("radio_rec","Gateway %d received a DATA MESSAGE\n",TOS_NODE_ID);
 			generate_send(8,bufPtr,1);
 		} else {
 		//caso 3: riceve ack da server node, lo inoltra solo all'effettivo destinatario 
-			dbg("radio_rec","Gateway %d received an ACK MESSAGE\n",TOS_NODE_ID);
+			//dbg("radio_rec","Gateway %d received an ACK MESSAGE\n",TOS_NODE_ID);
 			generate_send(rrm->destination,bufPtr,2);
 		}} else {
 		//SERVER NODE (8)
 		//caso 4: riceve data messages da sensor, manda ack, tiene in memoria i mex, controlla i duplicati -> avrà un array dove segna id messaggi ricevuti
 			int sending_node = rrm->sender;
-			dbg("radio_rec","Server node received a DATA MESSAGE\n");
+			//dbg("radio_rec","Server node received a DATA MESSAGE\n");
 			if(received_messages[sending_node-1] < rrm->ID) {
 				received_messages[sending_node-1] = rrm->ID;//salviamo solo l'ultimo perchè mandiamo uno per volta
 				}
@@ -258,16 +274,16 @@ implementation {
 	*  Check if the packet is sent 
 	*/ 
 	radio_route_msg_t* rrm = (radio_route_msg_t*)call Packet.getPayload(&queued_packet, sizeof(radio_route_msg_t));
-	dbg("radio_send", "sending\n");
+	//dbg("radio_send", "sending\n");
 	if (&queued_packet == bufPtr) {
       locked = FALSE;
       //da capire se mettere qui o in actual send solo quando effettivamente invia
       if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5 && rrm->type==1)
 	      call ACK_timer.startOneShot(1000);
-      dbg("radio_send", "\n");
+      /*dbg("radio_send", "\n");
       dbg("radio_send", "Packet sent");
       dbg_clear("radio_send", " at time %s \n",sim_time_string());
-      dbg("radio_send", "\n");
+      dbg("radio_send", "\n");*/
     }
   }
   /*
