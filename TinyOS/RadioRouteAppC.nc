@@ -1,6 +1,7 @@
-#include "Timer.h"
+#define NEW_PRINTF_SEMANTICS
 #include "printf.h"	
-#include "generic_printf.h"
+#include "Timer.h"
+//#include "generic_printf.h"
 #include "RadioRoute.h"
 
 configuration RadioRouteAppC {}
@@ -8,6 +9,8 @@ implementation {
 /****** COMPONENTS *****/
   components MainC, RadioRouteC as App;
   //add the other components here
+  components SerialPrintfC;
+  components SerialStartC;
   components new AMSenderC(AM_RADIO_COUNT_MSG);
   components new AMReceiverC(AM_RADIO_COUNT_MSG);
   components new TimerMilliC() as Timer0;

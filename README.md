@@ -10,3 +10,10 @@ re-transmitted.
 4. The network server node should be connected to Node-RED, and periodically transmit data from sensor nodes to Thingspeak through MQTT.
 5. Thingspeak must show at least three charts on a public channel.
 <img width="325" alt="topology" src="https://github.com/Roberto99-ops/IOTProject/assets/61754160/045c3bf5-aba4-4b31-90d9-9a3059068bc6">
+
+TO CONNECT Cooja to Node-red:
+	1.start cooja
+	2.start node-red
+	3.on cooja: tools->Serial Socket(server)->start
+	4.start node-rede simulation
+	5.start Cooja simulation

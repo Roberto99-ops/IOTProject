@@ -9,7 +9,7 @@
  
 #include "Timer.h"
 #include "printf.h"	
-#include "generic_printf.h"
+//#include "generic_printf.h"
 #include "RadioRoute.h"
 
 
@@ -127,7 +127,8 @@ implementation {
 			return FALSE;
       	}
 			locked = TRUE;
-			sprintf(dbg_message, "message %d from node %d ", data_msg->ID, data_msg->sender);
+			//DA DECOMMENTARE
+			/*sprintf(dbg_message, "message %d from node %d ", data_msg->ID, data_msg->sender);
 			if(data_msg->destination==0)
 				sprintf(dbg_message, "%s BROADCASTED", dbg_message);
 			if(TOS_NODE_ID==8)
@@ -135,7 +136,7 @@ implementation {
 			if(TOS_NODE_ID==6 || TOS_NODE_ID==7)
 				sprintf(dbg_message, "%s sent", dbg_message);
 			sprintf(dbg_message, "%s with final destination %d with type %d at time %s\n", dbg_message, data_msg->destination, data_msg->type, sim_time_string());
-			dbg("radio_send", "%s", dbg_message);
+			dbg("radio_send", "%s", dbg_message);*/
 			/*da capire se mettere qui o in sent alla fine
 			if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5 && data_msg->type==1)
 	      		call ACK_timer.startOneShot(1000);*/
@@ -210,6 +211,8 @@ implementation {
     else {
         radio_route_msg_t* rrm = (radio_route_msg_t*)call Packet.getPayload(bufPtr, sizeof(radio_route_msg_t));
 		//dbg("radio_rec","\n");
+		//DA DECOMMENTARE
+		/*
 		char dbg_message[200];
 		sprintf(dbg_message, "Received packet %d from node %d ", rrm->ID, rrm->sender);
         //dbg("radio_rec", "Received packet %d from node %d ", rrm->ID, rrm->sender);
@@ -219,7 +222,7 @@ implementation {
         	//dbg("radio_rec","from GATEWAY %d ", TOS_NODE_ID);
         sprintf(dbg_message, "%s with final destination %d at time %s\n", dbg_message, rrm->destination, sim_time_string());
         //dbg("radio_rec", "with final destination %d at time %s\n", rrm->destination, sim_time_string());
-        dbg("radio_rec","%s", dbg_message);
+        dbg("radio_rec","%s", dbg_message);*/
         //dbg("radio_pack", ">>>Pack \n \t Payload length %hhu \n", call Packet.payloadLength(bufPtr));
 		//SENSOR NODE (1:5)
 		//caso 1: ricevuto da sensor node (per forza un ACK ma metto comunque controllo per sicurezza) -> problema da capire quando magari non arriva ACK, si accumulano messaggi o aspetto a inviare altri
@@ -252,12 +255,13 @@ implementation {
 		//caso 4: riceve data messages da sensor, manda ack, tiene in memoria i mex, controlla i duplicati -> avrà un array dove segna id messaggi ricevuti
 			int sending_node = rrm->sender;
 			//dbg("radio_rec","Server node received a DATA MESSAGE\n");
+			//we enter here if the message received is a new one
 			if(received_messages[sending_node-1] < rrm->ID) {
-				received_messages[sending_node-1] = rrm->ID;//salviamo solo l'ultimo perchè mandiamo uno per volta
+				received_messages[sending_node-1] = rrm->ID;//salviamo solo l'ultimo ID perchè mandiamo uno per volta
+				//credo servano per far andare su cooja
+				printf("type:%d, sender:%d, gateway:%d, destination:%d, value:%d, ID:%d\n",rrm->type,rrm->sender,rrm->gateway,rrm->destination,rrm->value,rrm->ID);
+       			printfflush();
 				}
-			//credo servano per far andare su cooja
-			//printf("type:%d, sender:%d, gateway:%d, destination:%d, value:%d, ID:%d\n",rrm->type,rrm->sender,rrm->gateway,rrm->destination,rrm->value,rrm->ID);
-       		//printfflush();
 
 			rrm->type = 2;
 			rrm->destination = rrm->sender;
