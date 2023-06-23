@@ -226,16 +226,18 @@ implementation {
         //dbg("radio_pack", ">>>Pack \n \t Payload length %hhu \n", call Packet.payloadLength(bufPtr));
 		//SENSOR NODE (1:5)
 		//caso 1: ricevuto da sensor node (per forza un ACK ma metto comunque controllo per sicurezza) -> problema da capire quando magari non arriva ACK, si accumulano messaggi o aspetto a inviare altri
-		if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5 && rrm->type==2) {
-			//controllo ID
-			radio_route_msg_t* msg_stored = (radio_route_msg_t*)call Packet.getPayload(&message_to_be_confirmed, sizeof(radio_route_msg_t));
-			dbg("radio_rec","Node %d received an ACK message\n",TOS_NODE_ID);
-			if (rrm->ID == msg_stored->ID && !ACK_received) { //non dovrei controllare nella lista del nodo con un for? questa condizione risulta sempre vera penso
-				dbg("radio_rec","Node %d received ACK message for the message with ID: %d\n",TOS_NODE_ID, msg_stored->ID);
-				n_retr = 0;
-				call ACK_timer.stop();
-				ACK_received = TRUE;
-				call Timer1.startOneShot(2000);	
+		if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5) {
+			if(rrm->type==2){
+				//controllo ID
+				radio_route_msg_t* msg_stored = (radio_route_msg_t*)call Packet.getPayload(&message_to_be_confirmed, sizeof(radio_route_msg_t));
+				dbg("radio_rec","Node %d received an ACK message\n",TOS_NODE_ID);
+				if (rrm->ID == msg_stored->ID && !ACK_received) { //non dovrei controllare nella lista del nodo con un for? questa condizione risulta sempre vera penso
+					dbg("radio_rec","Node %d received ACK message for the message with ID: %d\n",TOS_NODE_ID, msg_stored->ID);
+					n_retr = 0;
+					call ACK_timer.stop();
+					ACK_received = TRUE;
+					call Timer1.startOneShot(2000);	
+				}
 			}				
 			//si potrebbe anche cancellare il mex salvato ma inutile tanto lo sovrascrivo poi
 			//ack_received = TRUE; -> altra possibile sol usare booleano e se FALSE mando di nuovo
