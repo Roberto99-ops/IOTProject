@@ -184,6 +184,7 @@ implementation {
 		rrm->value = val_to_send;
 		rrm->ID = counter;
 		dbg("timer","Timer1 fired in node %d generating DATA MESSAGE at time %s\n", TOS_NODE_ID, sim_time_string());
+		//valuto se fare invii personalizzati invece che a broadcast
 		generate_send(AM_BROADCAST_ADDR,&packet,1);//in questa func avvio timer di un sec, se non ricevo risposta allora ri-invio mex
 		counter++;
   }
