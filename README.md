@@ -18,3 +18,6 @@ TO CONNECT Cooja to Node-red:
 	4.start node-rede simulation
 	5.start Cooja simulation
 	questa parte funziona, il fatto è che non riesco a non far non comunicare i nodi 2 e 4, quindi li faccio comunicare e i messaggi che si scambiano li butto...
+	
+%%TODO
+chiedere al prof che cosa fare coi dbg
