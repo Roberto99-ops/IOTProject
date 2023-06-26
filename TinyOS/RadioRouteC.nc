@@ -87,7 +87,7 @@ implementation {
   	uint16_t delay = call Random.rand16();
   	delay = 1 + (delay%400);
   	if (call Timer0.isRunning()){
-  		printf("trying to send but channel busy\n");
+  		printf("dbg-trying to send but channel busy\n");
   		printfflush();
   		return FALSE;
   	}else{
@@ -141,7 +141,7 @@ implementation {
 			dest = data_msg->destination;
 			if(dest==0) dest=8;
 			sprintf(dbg_message, "%s with final destination %d with type %d\n", dbg_message, dest, data_msg->type);
-			printf("%s", dbg_message);
+			printf("dbg-%s", dbg_message);
 			printfflush();
 			/*da capire se mettere qui o in sent alla fine
 			if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5 && data_msg->type==1)
@@ -152,7 +152,7 @@ implementation {
   
   
   event void Boot.booted() {
-    printf("Application booted.\n");
+    printf("dbg-Application booted.\n");
     printfflush();
     call AMControl.start();
   }
@@ -163,39 +163,41 @@ implementation {
       //if sensor node start transmit periodically random data -> messo ogni 2 secondi, da capire poi se meglio avere tempi diversi per ogni sensore o va bene cosi
       if(TOS_NODE_ID >= 1 && TOS_NODE_ID <=5) {
       	call Timer1.startOneShot(2000);
-      	printf("Radio ON on sensor node with ID %d\n", TOS_NODE_ID);
+      	printf("dbg-Radio ON on sensor node with ID %d\n", TOS_NODE_ID);
       	printfflush();
       	} else if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7) {
-      	printf("Radio ON on gateway node with ID %d\n", TOS_NODE_ID);
+      	printf("dbg-Radio ON on gateway node with ID %d\n", TOS_NODE_ID);
       	printfflush();
       } else {
-      	printf("Radio ON on server node with ID %d\n", TOS_NODE_ID);
+      	printf("dbg-Radio ON on server node with ID %d\n", TOS_NODE_ID);
       	printfflush();
       }
     }
     else {
       // if not correctly started restart it
-      printf("Radio failed to start, retrying...\n");
+      printf("dbg-Radio failed to start, retrying...\n");
       printfflush();
       call AMControl.start();
     }
   }
 
   event void AMControl.stopDone(error_t err) {
-    printf("Radio stopped!\n");
+    printf("dbg-Radio stopped!\n");
     printfflush();
   }
   
   event void Timer1.fired() {
 	uint16_t val_to_send = call Random.rand16();
+	
 	radio_route_msg_t* rrm = (radio_route_msg_t*)call Packet.getPayload(&packet, sizeof(radio_route_msg_t));
+	val_to_send = 1 + (val_to_send%100);//random numbers from 1 to 100
 	//dbg("timer","Timer1 fired in node %d at time %s\n", TOS_NODE_ID, sim_time_string());
 		ACK_received = FALSE;
 		rrm->type = 1;//1=data message, 2=ACK message
 		rrm->sender = TOS_NODE_ID;
 		rrm->value = val_to_send;
 		rrm->ID = counter;
-		printf("Timer1 fired in node %d generating DATA MESSAGE\n", TOS_NODE_ID);
+		printf("dbg-Timer1 fired in node %d generating DATA MESSAGE\n", TOS_NODE_ID);
 		printfflush();
 		//valuto se fare invii personalizzati invece che a broadcast
 		generate_send(AM_BROADCAST_ADDR,&packet,1);//in questa func avvio timer di un sec, se non ricevo risposta allora ri-invio mex
@@ -206,7 +208,7 @@ implementation {
   	//rimanda mex in message_to_be_confirmed 
   	//deve aspettare un numero random di secondi
   	radio_route_msg_t* data_msg = (radio_route_msg_t*)call Packet.getPayload(&message_to_be_confirmed, sizeof(radio_route_msg_t));
-  	printf("ACK_timer fired, resending\n");
+  	printf("dbg-ACK_timer fired, resending\n");
   	printfflush();
   	//limiting retransmission time to 3 for a message
   	n_retr++;
@@ -216,7 +218,7 @@ implementation {
 		n_retr = 0;
 		ACK_received = TRUE;
 		call Timer1.startOneShot(2000);
-		printf("Message with ID %d discarded after 3 attempts of sending it\n", data_msg->ID);
+		printf("dbg-Message with ID %d discarded after 3 attempts of sending it\n", data_msg->ID);
 		printfflush();
 	}
   }
@@ -241,7 +243,7 @@ implementation {
         if(dest==0) dest=8;
         sprintf(dbg_message, "%s with final destination %d\n", dbg_message, dest);
         //dbg("radio_rec", "with final destination %d at time %s\n", rrm->destination, sim_time_string());
-        printf("%s", dbg_message);
+        printf("dbg-%s", dbg_message);
         printfflush();
         //dbg("radio_pack", ">>>Pack \n \t Payload length %hhu \n", call Packet.payloadLength(bufPtr));
 		//SENSOR NODE (1:5)
@@ -250,10 +252,10 @@ implementation {
 			if(rrm->type==2){
 				//controllo ID
 				radio_route_msg_t* msg_stored = (radio_route_msg_t*)call Packet.getPayload(&message_to_be_confirmed, sizeof(radio_route_msg_t));
-				printf("Node %d received an ACK message\n",TOS_NODE_ID);
+				printf("dbg-Node %d received an ACK message\n",TOS_NODE_ID);
 				printfflush();
 				if (rrm->ID == msg_stored->ID && !ACK_received) { //non dovrei controllare nella lista del nodo con un for? questa condizione risulta sempre vera penso
-					printf("Node %d received ACK message for the message with ID: %d\n",TOS_NODE_ID, msg_stored->ID);
+					printf("dbg-Node %d received ACK message for the message with ID: %d\n",TOS_NODE_ID, msg_stored->ID);
 					printfflush();
 					n_retr = 0;
 					call ACK_timer.stop();
