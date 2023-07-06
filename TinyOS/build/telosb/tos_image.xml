@@ -1,13 +1,13 @@
 <tos_image>
   <ident>
     <appname>RadioRouteAppC</appname>
-    <hostname>user-iot</hostname>
-    <timestamp>6499B172L</timestamp>
-    <userhash>2C00343AL</userhash>
     <deluge_support>no</deluge_support>
-    <username>user</username>
-    <uidhash>5C539149L</uidhash>
+    <userhash>2C00343AL</userhash>
+    <hostname>user-iot</hostname>
     <platform>telosb</platform>
+    <timestamp>64A687DFL</timestamp>
+    <uidhash>BA071DA8L</uidhash>
+    <username>user</username>
   </ident>
   <image format="ihex">
 :104000005542200135D0085A8245DA133140003933

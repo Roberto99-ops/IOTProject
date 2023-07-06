@@ -1,7 +1,6 @@
 #define NEW_PRINTF_SEMANTICS
 #include "printf.h"	
 #include "Timer.h"
-//#include "generic_printf.h"
 #include "RadioRoute.h"
 
 configuration RadioRouteAppC {}

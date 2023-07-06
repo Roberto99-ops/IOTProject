@@ -1,11 +1,3 @@
-
-/*
-*	IMPORTANT:
-*	The code will be avaluated based on:
-*		Code design  
-*
-*/
- 
  
 #include "Timer.h"
 #include "printf.h"	
@@ -39,6 +31,7 @@ implementation {
   int received_messages[5] = {0,0,0,0,0};
   //counter used to build the message ID
   int counter = 1;
+  //counter used to limit the max retransmission count of a message
   int n_retr = 0;
   uint16_t queue_addr;
   
@@ -49,19 +42,11 @@ implementation {
   bool actual_send (uint16_t address, message_t* packet);
   bool generate_send (uint16_t address, message_t* packet, uint8_t type);
   
-  
-  bool generate_send (uint16_t address, message_t* packet, uint8_t type){
   /*
-  * 
-  * Function to be used when performing the send after the receive message event.
-  * It store the packet and address into a global variable and start the timer execution to schedule the send.
-  * It allow the sending of only one message for each REQ and REP type.
-  * @Input:
-  *		address: packet destination address
-  *		packet: full packet to be sent (Not only Payload)
-  *		type: payload message type
-  *
+  Function used to prepare the sending of a message distinguishing between data message to be confirmed(type 1) and ACK messages(type 2), 
+  adding a random delay(using Timer0) to avoid much possible collisions 
   */
+  bool generate_send (uint16_t address, message_t* packet, uint8_t type){
   	uint16_t delay = call Random.rand16();
   	delay = 1 + (delay%400);
   	if (call Timer0.isRunning()){
@@ -84,15 +69,14 @@ implementation {
   	return TRUE;
   }
   
+  //When triggered, this function call the actual_send function
   event void Timer0.fired() {
-	//dbg("timer", "timer0");
+	//dbg("timer", "timer0 fired");
   	actual_send (queue_addr, &queued_packet);
   }
   
+  //Function that perform the actual send of the message contained in packet to the address address, using the TinyOS interfaces, obviously onlhy if the channel is not busy
   bool actual_send (uint16_t address, message_t* packet){
-	/*
-	* Implement here the logic to perform the actual send of the packet using the tinyOS interfaces
-	*/
 	//var used just to build the debug message
 	char dbg_message[200];
 	int dest;
@@ -127,13 +111,14 @@ implementation {
   	} else return FALSE; }
   }
   
-  
+  //Event triggered when the app is booted
   event void Boot.booted() {
     printf("dbg-Application booted.\n");
     printfflush();
     call AMControl.start();
   }
 
+  //function triggered when the radio actually starts, in case the radio not correctly starts, it restarts it
   event void AMControl.startDone(error_t err) {
 	if (err == SUCCESS) {
       
@@ -158,11 +143,13 @@ implementation {
     }
   }
 
+  //This function handle the stop of the radio
   event void AMControl.stopDone(error_t err) {
     printf("dbg-Radio stopped!\n");
     printfflush();
   }
   
+  //This function handle the Timer1 expired events, sending a new data message with a random value and incrementing the counter
   event void Timer1.fired() {
   	//generates the random value
 	uint16_t val_to_send = call Random.rand16();
@@ -182,6 +169,7 @@ implementation {
 		counter++;
   }
   
+  //This function handle the ACK_timer expired events, retransmittinge the message in case the max retransmission number hasn't been reached
   event void ACK_timer.fired() {
   	//timer fired if ack not received in 1 second, it waits a random number of seconds before retransmitting the message (stored in message_to_be_confirmed)
   	radio_route_msg_t* data_msg = (radio_route_msg_t*)call Packet.getPayload(&message_to_be_confirmed, sizeof(radio_route_msg_t));
@@ -200,8 +188,8 @@ implementation {
 	}
   }
 
+  //This function handle the reciving message events 
   event message_t* Receive.receive(message_t* bufPtr, void* payload, uint8_t len) {
-  	
 	if (len != sizeof(radio_route_msg_t)) {return bufPtr;}
     else {
         radio_route_msg_t* rrm = (radio_route_msg_t*)call Packet.getPayload(bufPtr, sizeof(radio_route_msg_t));
@@ -277,9 +265,9 @@ implementation {
     }
   }
 
+  //This event is triggered when a message is actually sent 
   event void AMSend.sendDone(message_t* bufPtr, error_t error) {
-	/* This event is triggered when a message is sent 
-	*  Check if the packet is sent 
+	/*  
 	* In this function, if the node is a sensor node, it starts a timer of that will be triggered (after 1 second) if 
   	* the node doesn't receive the ack back.
 	*/ 
